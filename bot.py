@@ -1,14 +1,13 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from google import genai
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 CHAT_ID = os.environ.get('CHAT_ID')
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-3.8-flash')
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 def send_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -29,7 +28,13 @@ def get_github_trends():
             desc_tag = article.find('p', class_='col-9')
             description = desc_tag.text.strip() if desc_tag else "Без описания"
             prompt = f"Объясни просто для новичка: {repo_name}. {description}. 1 предложение что это, 1 зачем нужно."
-            ai_text = model.generate_content(prompt).text
+            
+            response = client.models.generate_content(
+                model='gemini-1.5-flash-latest',
+                contents=prompt
+            )
+            ai_text = response.text
+            
             result.append(f"🐙 **{repo_name}**\n💡 {ai_text}\n🔗 https://github.com/{repo_name}")
         return "\n\n".join(result)
     except Exception as e:
@@ -40,7 +45,13 @@ def get_space_news():
         data = requests.get("https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY").json()
         if data.get('media_type') == 'image':
             prompt = f"Переведи и объясни просто на русском: {data.get('explanation', '')}"
-            ai_text = model.generate_content(prompt).text
+            
+            response = client.models.generate_content(
+                model='gemini-1.5-flash-latest',
+                contents=prompt
+            )
+            ai_text = response.text
+            
             send_photo(data['url'], f"🚀 **{data.get('title', 'Космос')}**\n\n{ai_text}")
         else:
             send_message(f"Сегодня NASA выложило видео: {data.get('url')}")
