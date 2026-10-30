@@ -19,9 +19,9 @@ def ask_ai(prompt):
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
-    # Самая быстрая и надежная модель Groq
+    # Актуальная модель, которая точно работает
     data = {
-        "model": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-120b",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.5
     }
