@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from bs4 import BeautifulSoup
 from google import genai
@@ -7,7 +8,7 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 CHAT_ID = os.environ.get('CHAT_ID')
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY, http_options={'timeout': 20})
 
 def send_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -23,6 +24,20 @@ def send_photo(photo_url, caption):
     except Exception:
         pass
 
+# Функция для запроса к ИИ с попытками, если сервер перегружен (503)
+def ask_ai(prompt):
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(model='gemini-3.8-flash', contents=prompt)
+            return response.text
+        except Exception as e:
+            if '503' in str(e) or 'UNAVAILABLE' in str(e):
+                time.sleep(5) # Ждем 5 секунд и пробуем снова
+                continue
+            else:
+                return f"Ошибка ИИ: {e}"
+    return "Ошибка: Сервер Google перегружен, попробуйте позже."
+
 def get_github_trends():
     try:
         url = "https://github.com/trending?since=daily"
@@ -35,12 +50,7 @@ def get_github_trends():
             description = desc_tag.text.strip() if desc_tag else "Без описания"
             prompt = f"Объясни просто для новичка: {repo_name}. {description}. 1 предложение что это, 1 зачем нужно."
             
-            response = client.models.generate_content(
-                model='gemini-3.8-flash',
-                contents=prompt
-            )
-            ai_text = response.text
-            
+            ai_text = ask_ai(prompt)
             result.append(f"🐙 **{repo_name}**\n💡 {ai_text}\n🔗 https://github.com/{repo_name}")
         return "\n\n".join(result)
     except Exception as e:
@@ -51,16 +61,11 @@ def get_space_news():
         data = requests.get("https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY", timeout=15).json()
         if data.get('media_type') == 'image':
             prompt = f"Переведи и объясни просто на русском: {data.get('explanation', '')}"
-            
-            response = client.models.generate_content(
-                model='gemini-3.8-flash',
-                contents=prompt
-            )
-            ai_text = response.text
-            
+            ai_text = ask_ai(prompt)
             send_photo(data['url'], f"🚀 **{data.get('title', 'Космос')}**\n\n{ai_text}")
         else:
-            send_message(f"Сегодня NASA выложило видео: {data.get('url')}")
+            video_url = data.get('url', 'Ссылка недоступна')
+            send_message(f"Сегодня NASA выложило видео (не фото):\n{video_url}")
     except Exception as e:
         send_message(f"Ошибка NASA: {e}")
 
