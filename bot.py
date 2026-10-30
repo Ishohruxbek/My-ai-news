@@ -11,16 +11,22 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 def send_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(url, json={'chat_id': CHAT_ID, 'text': text, 'parse_mode': 'Markdown', 'disable_web_page_preview': True})
+    try:
+        requests.post(url, json={'chat_id': CHAT_ID, 'text': text, 'parse_mode': 'Markdown', 'disable_web_page_preview': True}, timeout=15)
+    except Exception:
+        pass
 
 def send_photo(photo_url, caption):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
-    requests.post(url, data={'chat_id': CHAT_ID, 'photo': photo_url, 'caption': caption, 'parse_mode': 'Markdown'})
+    try:
+        requests.post(url, data={'chat_id': CHAT_ID, 'photo': photo_url, 'caption': caption, 'parse_mode': 'Markdown'}, timeout=15)
+    except Exception:
+        pass
 
 def get_github_trends():
     try:
         url = "https://github.com/trending?since=daily"
-        soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+        soup = BeautifulSoup(requests.get(url, timeout=15).text, 'html.parser')
         articles = soup.find_all('article', class_='Box-row')[:3]
         result = []
         for article in articles:
@@ -30,7 +36,7 @@ def get_github_trends():
             prompt = f"Объясни просто для новичка: {repo_name}. {description}. 1 предложение что это, 1 зачем нужно."
             
             response = client.models.generate_content(
-                model='gemini-3.8-flash',
+                model='gemini-1.5-flash',
                 contents=prompt
             )
             ai_text = response.text
@@ -42,12 +48,12 @@ def get_github_trends():
 
 def get_space_news():
     try:
-        data = requests.get("https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY").json()
+        data = requests.get("https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY", timeout=15).json()
         if data.get('media_type') == 'image':
             prompt = f"Переведи и объясни просто на русском: {data.get('explanation', '')}"
             
             response = client.models.generate_content(
-                model='gemini-3.8-flash',
+                model='gemini-1.5-flash',
                 contents=prompt
             )
             ai_text = response.text
