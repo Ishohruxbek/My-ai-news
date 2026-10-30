@@ -8,7 +8,8 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 CHAT_ID = os.environ.get('CHAT_ID')
 
-client = genai.Client(api_key=GEMINI_API_KEY, http_options={'timeout': 20})
+# Увеличили таймаут до 60 секунд, чтобы сервер успел ответить
+client = genai.Client(api_key=GEMINI_API_KEY, http_options={'timeout': 60})
 
 def send_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -24,19 +25,15 @@ def send_photo(photo_url, caption):
     except Exception:
         pass
 
-# Функция для запроса к ИИ с попытками, если сервер перегружен (503)
 def ask_ai(prompt):
-    for attempt in range(3):
+    # Используем стабильную модель 2.0
+    for attempt in range(2):
         try:
-            response = client.models.generate_content(model='gemini-3.8-flash', contents=prompt)
+            response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
             return response.text
         except Exception as e:
-            if '503' in str(e) or 'UNAVAILABLE' in str(e):
-                time.sleep(5) # Ждем 5 секунд и пробуем снова
-                continue
-            else:
-                return f"Ошибка ИИ: {e}"
-    return "Ошибка: Сервер Google перегружен, попробуйте позже."
+            time.sleep(3)
+    return "Не удалось получить ответ от ИИ (сервер перегружен)."
 
 def get_github_trends():
     try:
@@ -64,7 +61,7 @@ def get_space_news():
             ai_text = ask_ai(prompt)
             send_photo(data['url'], f"🚀 **{data.get('title', 'Космос')}**\n\n{ai_text}")
         else:
-            video_url = data.get('url', 'Ссылка недоступна')
+            video_url = data.get('url') or "Ссылка скрыта"
             send_message(f"Сегодня NASA выложило видео (не фото):\n{video_url}")
     except Exception as e:
         send_message(f"Ошибка NASA: {e}")
