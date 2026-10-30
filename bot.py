@@ -30,9 +30,9 @@ def get_github_trends():
             prompt = f"Объясни просто для новичка: {repo_name}. {description}. 1 предложение что это, 1 зачем нужно."
             
             response = client.models.generate_content(
-                model='gemini-1.5-flash-latest',
-                contents=prompt
-            )
+    model='gemini-3.8-flash',
+    contents=prompt
+)
             ai_text = response.text
             
             result.append(f"🐙 **{repo_name}**\n💡 {ai_text}\n🔗 https://github.com/{repo_name}")
